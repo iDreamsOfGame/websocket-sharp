@@ -177,7 +177,7 @@ namespace WebSocketSharp
 			}
 		}
 
-		internal bool IsConnected
+		public bool IsConnected
 		{
 			get
 			{
@@ -816,12 +816,16 @@ namespace WebSocketSharp
 			return HandlePing(frame.ToArray(), waitTime);
 		}
 
-		private void PingAsyncInternal(byte[] data, Action<bool> completed)
+		private void PingAsyncInternal(byte[] data, Action<bool, string> completed)
 		{
 			if (readyState != WebSocketState.Open)
-				throw new InvalidOperationException("The current state of the connection is not Open.");
+			{
+				const string message = "The current state of the connection is not Open.";
+				completed?.Invoke(false, message);
+				return;
+			}
 
-			SendCompressFragmentedAsync(Opcode.Ping, new MemoryStream(data), completed);
+			SendCompressFragmentedAsync(Opcode.Ping, new MemoryStream(data), result => completed?.Invoke(result, null));
 		}
 
 
@@ -2069,7 +2073,7 @@ namespace WebSocketSharp
 		///   <see langword="null"/> if not necessary.
 		///   </para>
 		/// </param>
-		public void PingAsync(Action<bool> completed)
+		public void PingAsync(Action<bool, string> completed)
 		{
 			PingAsyncInternal(EmptyBytes, completed);
 		}
@@ -2106,23 +2110,28 @@ namespace WebSocketSharp
 		/// <exception cref="ArgumentOutOfRangeException">
 		/// The size of <paramref name="message"/> is greater than 125 bytes.
 		/// </exception>
-		public void PingAsync(string message, Action<bool> completed)
+		public void PingAsync(string message, Action<bool, string> completed)
 		{
-			if (message.IsNullOrEmpty ())
+			if (string.IsNullOrEmpty(message))
+			{
 				PingAsyncInternal(EmptyBytes, completed);
+				return;
+			}
 
-			if (!message.TryGetUTF8EncodedBytes (out var bytes))
+			if (!message.TryGetUTF8EncodedBytes(out var bytes))
 			{
 				const string msg = "It could not be UTF-8-encoded.";
-				throw new ArgumentException (msg, nameof(message));
+				completed?.Invoke(false, msg);
+				return;
 			}
 
 			if (bytes.Length > 125)
 			{
 				const string msg = "Its size is greater than 125 bytes.";
-				throw new ArgumentOutOfRangeException (nameof(message), msg);
+				completed?.Invoke(false, msg);
+				return;
 			}
-      
+
 			PingAsyncInternal(bytes, completed);
 		}
 
