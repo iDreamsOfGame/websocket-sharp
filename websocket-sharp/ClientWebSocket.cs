@@ -1274,6 +1274,14 @@ namespace WebSocketSharp
 #endif
 		}
 
+		/// <summary>
+		/// Reset retry count for connect.
+		/// </summary>
+		public void ResetRetryCountForConnect()
+		{
+			retryCountForConnect = 0;
+		}
+
 
 		/// <summary>
 		///     Sets the credentials for the HTTP authentication (Basic/Digest).

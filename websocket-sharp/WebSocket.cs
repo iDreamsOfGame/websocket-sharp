@@ -816,16 +816,15 @@ namespace WebSocketSharp
 			return HandlePing(frame.ToArray(), waitTime);
 		}
 
-		private void PingAsyncInternal(byte[] data, Action<bool, string> completed)
+		private void PingAsyncInternal(byte[] data, Action<bool> completed)
 		{
 			if (readyState != WebSocketState.Open)
 			{
-				const string message = "The current state of the connection is not Open.";
-				completed?.Invoke(false, message);
-				return;
+				const string errorMessage = "The current state of the connection is not Open.";
+				throw new Exception(errorMessage);
 			}
 
-			SendCompressFragmentedAsync(Opcode.Ping, new MemoryStream(data), result => completed?.Invoke(result, null));
+			SendCompressFragmentedAsync(Opcode.Ping, new MemoryStream(data), completed);
 		}
 
 
@@ -2073,7 +2072,7 @@ namespace WebSocketSharp
 		///   <see langword="null"/> if not necessary.
 		///   </para>
 		/// </param>
-		public void PingAsync(Action<bool, string> completed)
+		public void PingAsync(Action<bool> completed)
 		{
 			PingAsyncInternal(EmptyBytes, completed);
 		}
@@ -2110,7 +2109,7 @@ namespace WebSocketSharp
 		/// <exception cref="ArgumentOutOfRangeException">
 		/// The size of <paramref name="message"/> is greater than 125 bytes.
 		/// </exception>
-		public void PingAsync(string message, Action<bool, string> completed)
+		public void PingAsync(string message, Action<bool> completed)
 		{
 			if (string.IsNullOrEmpty(message))
 			{
@@ -2121,15 +2120,13 @@ namespace WebSocketSharp
 			if (!message.TryGetUTF8EncodedBytes(out var bytes))
 			{
 				const string msg = "It could not be UTF-8-encoded.";
-				completed?.Invoke(false, msg);
-				return;
+				throw new ArgumentException(nameof(message), msg);
 			}
 
 			if (bytes.Length > 125)
 			{
 				const string msg = "Its size is greater than 125 bytes.";
-				completed?.Invoke(false, msg);
-				return;
+				throw new ArgumentException(nameof(message), msg);
 			}
 
 			PingAsyncInternal(bytes, completed);
