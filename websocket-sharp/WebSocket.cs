@@ -816,6 +816,14 @@ namespace WebSocketSharp
 			return HandlePing(frame.ToArray(), waitTime);
 		}
 
+		private void PingAsyncInternal(byte[] data, Action<bool> completed)
+		{
+			if (readyState != WebSocketState.Open)
+				throw new InvalidOperationException("The current state of the connection is not Open.");
+
+			SendCompressFragmentedAsync(Opcode.Ping, new MemoryStream(data), completed);
+		}
+
 
 		private bool ProcessCloseFrame(WebSocketFrame frame)
 		{
@@ -2042,7 +2050,81 @@ namespace WebSocketSharp
 
 			return PingInternal(bytes);
 		}
+		
+		/// <summary>
+		/// Sends a ping with the specified message to the remote endpoint asynchronously.
+		/// </summary>
+		/// <param name="completed">
+		///   <para>
+		///   An <see cref="T:System.Action{bool}"/> delegate.
+		///   </para>
+		///   <para>
+		///   The delegate invokes the method called when the send is complete.
+		///   </para>
+		///   <para>
+		///   The <see cref="bool"/> parameter passed to the method is <c>true</c>
+		///   if the send has successfully done; otherwise, <c>false</c>.
+		///   </para>
+		///   <para>
+		///   <see langword="null"/> if not necessary.
+		///   </para>
+		/// </param>
+		public void PingAsync(Action<bool> completed)
+		{
+			PingAsyncInternal(EmptyBytes, completed);
+		}
+		
+		/// <summary>
+		/// Sends a ping with the specified message to the remote endpoint asynchronously.
+		/// </summary>
+		/// <param name="message">
+		///   <para>
+		///   A <see cref="string"/> that specifies the message to send.
+		///   </para>
+		///   <para>
+		///   Its size must be 125 bytes or less in UTF-8.
+		///   </para>
+		/// </param>
+		/// <param name="completed">
+		///   <para>
+		///   An <see cref="T:System.Action{bool}"/> delegate.
+		///   </para>
+		///   <para>
+		///   The delegate invokes the method called when the send is complete.
+		///   </para>
+		///   <para>
+		///   The <see cref="bool"/> parameter passed to the method is <c>true</c>
+		///   if the send has successfully done; otherwise, <c>false</c>.
+		///   </para>
+		///   <para>
+		///   <see langword="null"/> if not necessary.
+		///   </para>
+		/// </param>
+		/// <exception cref="ArgumentException">
+		/// <paramref name="message"/> could not be UTF-8-encoded.
+		/// </exception>
+		/// <exception cref="ArgumentOutOfRangeException">
+		/// The size of <paramref name="message"/> is greater than 125 bytes.
+		/// </exception>
+		public void PingAsync(string message, Action<bool> completed)
+		{
+			if (message.IsNullOrEmpty ())
+				PingAsyncInternal(EmptyBytes, completed);
 
+			if (!message.TryGetUTF8EncodedBytes (out var bytes))
+			{
+				const string msg = "It could not be UTF-8-encoded.";
+				throw new ArgumentException (msg, nameof(message));
+			}
+
+			if (bytes.Length > 125)
+			{
+				const string msg = "Its size is greater than 125 bytes.";
+				throw new ArgumentOutOfRangeException (nameof(message), msg);
+			}
+      
+			PingAsyncInternal(bytes, completed);
+		}
 
 		/// <summary>
 		///     Sends the specified data using the WebSocket connection.
